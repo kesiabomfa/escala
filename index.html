@@ -80,6 +80,13 @@ body{
   font-weight:700; font-size:12px; padding:7px 13px; border-radius:20px; cursor:pointer;
   position:absolute; right:14px; top:20px;
 }
+.syncbtn{
+  border:1px solid var(--line); background:var(--card); color:var(--ink-soft);
+  font-weight:700; font-size:14px; width:32px; height:32px; border-radius:50%; cursor:pointer;
+  position:absolute; right:14px; top:58px; display:flex; align-items:center; justify-content:center;
+}
+.syncbtn.spinning{animation:spin 0.7s linear;}
+@keyframes spin{ from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
 #dateInput{position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;}
 
 /* ---------- week strip ---------- */
@@ -315,6 +322,7 @@ main{padding:4px 16px 20px; display:flex; flex-direction:column; gap:16px;}
       <button class="navbtn" id="nextBtn" aria-label="Próximo dia">›</button>
     </div>
     <button class="todaybtn" id="todayBtn">hoje</button>
+    <button class="syncbtn" id="syncBtn" title="Buscar trocas mais recentes da planilha">⟳</button>
     <input type="date" id="dateInput" min="2026-01-01" max="2026-12-31" value="2026-08-18">
   </header>
 
@@ -376,8 +384,15 @@ const DOW_SHORT = ["dom","seg","ter","qua","qui","sex","sáb"];
 const MON_NAMES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 
 
+// ============================================================
+// Cole aqui a URL da sua implantação do Google Apps Script
+// (termina em /exec). Deixe "" para usar só o navegador local.
+// ============================================================
+const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbwtTLDi0gU5vdVbmy9R6MZwF5tHJ_iF-T6mLWtEkZVuPWtmfdwrSYJx8p9m5M8sDePaHQ/exec";
+
 let selected = new Date(2026,7,18); // 18 Aug 2026
 let overridesCache = {};
+let overridesLoadedFromSheet = false;
 let pendingSlot = null; // {dateISO, key, label, currentName}
 
 function iso(d){
@@ -397,29 +412,76 @@ function hasLocalStorage(){
 }
 const STORAGE_OK = hasLocalStorage();
 
-async function getOverrides(dateISO){
-  if(overridesCache[dateISO]) return overridesCache[dateISO];
-  let ov = {};
+function readLocalOverrides(dateISO){
   try{
-    if(STORAGE_OK){
-      const raw = localStorage.getItem('escala2026_'+dateISO);
-      if(raw) ov = JSON.parse(raw);
-    }
-  }catch(e){}
+    if(!STORAGE_OK) return {};
+    const raw = localStorage.getItem('escala2026_'+dateISO);
+    return raw ? JSON.parse(raw) : {};
+  }catch(e){ return {}; }
+}
+function writeLocalOverrides(dateISO, ov){
+  try{ if(STORAGE_OK) localStorage.setItem('escala2026_'+dateISO, JSON.stringify(ov)); }catch(e){}
+}
+
+// Busca TODAS as trocas guardadas na planilha compartilhada, uma vez, no início.
+async function loadSheetOverrides(){
+  if(!SHEET_API_URL) return false;
+  try{
+    const res = await fetch(SHEET_API_URL, {cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const remote = await res.json();
+    overridesCache = remote || {};
+    overridesLoadedFromSheet = true;
+    return true;
+  }catch(e){
+    console.error('Falha ao buscar trocas da planilha:', e);
+    showToast('Sem conexão com a planilha — usando dados locais');
+    return false;
+  }
+}
+
+async function getOverrides(dateISO){
+  if(overridesLoadedFromSheet) return overridesCache[dateISO] || {};
+  if(overridesCache[dateISO]) return overridesCache[dateISO];
+  const ov = readLocalOverrides(dateISO);
   overridesCache[dateISO] = ov;
   return ov;
 }
+
 async function saveOverride(dateISO, key, name){
   const ov = await getOverrides(dateISO);
   ov[key] = name;
   overridesCache[dateISO] = ov;
-  try{ if(STORAGE_OK) localStorage.setItem('escala2026_'+dateISO, JSON.stringify(ov)); }catch(e){}
+  writeLocalOverrides(dateISO, ov);
+  if(SHEET_API_URL){
+    try{
+      await fetch(SHEET_API_URL, {
+        method: 'POST',
+        body: JSON.stringify({date: dateISO, key, name, action: 'set'})
+      });
+    }catch(e){
+      console.error('Falha ao salvar na planilha:', e);
+      showToast('Salvo neste aparelho — falhou ao sincronizar');
+    }
+  }
 }
+
 async function clearOverrideKey(dateISO, key){
   const ov = await getOverrides(dateISO);
   delete ov[key];
   overridesCache[dateISO] = ov;
-  try{ if(STORAGE_OK) localStorage.setItem('escala2026_'+dateISO, JSON.stringify(ov)); }catch(e){}
+  writeLocalOverrides(dateISO, ov);
+  if(SHEET_API_URL){
+    try{
+      await fetch(SHEET_API_URL, {
+        method: 'POST',
+        body: JSON.stringify({date: dateISO, key, action: 'delete'})
+      });
+    }catch(e){
+      console.error('Falha ao remover na planilha:', e);
+      showToast('Removido neste aparelho — falhou ao sincronizar');
+    }
+  }
 }
 
 function showToast(msg){
@@ -661,6 +723,15 @@ document.getElementById('todayBtn').onclick = ()=>{
   selected = new Date(2026,7,18);
   renderAll();
 };
+document.getElementById('syncBtn').onclick = async ()=>{
+  const btn = document.getElementById('syncBtn');
+  btn.classList.add('spinning');
+  const ok = await loadSheetOverrides();
+  buildSpecialDays();
+  await renderContent();
+  btn.classList.remove('spinning');
+  showToast(ok ? 'Sincronizado com a planilha ✓' : (SHEET_API_URL ? 'Falha ao sincronizar' : 'Planilha não configurada'));
+};
 document.getElementById('dateOpenBtn').onclick = ()=>{
   const inp = document.getElementById('dateInput');
   if(inp.showPicker){ inp.showPicker(); } else { inp.focus(); inp.click(); }
@@ -670,6 +741,10 @@ document.getElementById('dateInput').onchange = (e)=>{
 };
 /* ---------- consulta de fins de semana / feriados ---------- */
 function getStoredOverrideSync(dateISO, key){
+  if(overridesLoadedFromSheet){
+    const ov = overridesCache[dateISO];
+    return (ov && ov[key]) || null;
+  }
   try{
     if(!STORAGE_OK) return null;
     const raw = localStorage.getItem('escala2026_'+dateISO);
@@ -799,11 +874,14 @@ document.getElementById('tabByName').onclick = ()=>{ searchTab='name'; renderSea
 document.getElementById('tabByDate').onclick = ()=>{ searchTab='date'; renderSearch(); };
 
 async function loadSchedule(){
-  if(SCHEDULE) return true;
+  if(SCHEDULE){
+    return true;
+  }
   try{
     const res = await fetch('./schedule_2026.json', {cache:'no-store'});
     if(!res.ok) throw new Error('HTTP '+res.status);
     SCHEDULE = await res.json();
+    await loadSheetOverrides();
     buildSpecialDays();
     return true;
   }catch(err){
