@@ -91,28 +91,31 @@ body{
 
 /* ---------- week strip ---------- */
 .weekstrip{
-  display:flex; gap:8px; overflow-x:auto; padding:6px 20px 18px;
-  scroll-snap-type:x proximity;
+  display:flex; gap:6px; overflow-x:auto; padding:6px 20px 18px;
+  scroll-snap-type:x mandatory; scroll-behavior:smooth;
+  -webkit-overflow-scrolling:touch;
 }
 .weekstrip::-webkit-scrollbar{display:none;}
 .daychip{
-  flex:0 0 auto; width:50px; scroll-snap-align:center;
-  display:flex; flex-direction:column; align-items:center; gap:4px;
-  padding:9px 0 10px; border-radius:16px; cursor:pointer;
+  flex:0 0 auto; width:44px; scroll-snap-align:center;
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+  padding:9px 0 10px; border-radius:14px; cursor:pointer;
   border:1px solid transparent; background:transparent;
 }
+.daychip .cmonth{font-size:8.5px; font-weight:800; text-transform:uppercase; color:var(--special); letter-spacing:0.04em; height:11px; line-height:11px;}
 .daychip .cdow{font-size:10px; font-weight:700; text-transform:uppercase; color:var(--ink-faint); letter-spacing:0.03em;}
-.daychip .cnum{font-family:'Fraunces',serif; font-size:19px; font-weight:600; color:var(--ink);}
+.daychip .cnum{font-family:'Fraunces',serif; font-size:18px; font-weight:600; color:var(--ink);}
 .daychip .cdot{width:4px; height:4px; border-radius:50%; margin-top:1px; background:transparent;}
 .daychip.weekend{background:var(--special-soft);}
 .daychip.weekend .cdow, .daychip.weekend .cnum{color:var(--special);}
 .daychip.holiday .cdot{background:var(--special);}
 .daychip.selected{background:var(--ink); border-color:var(--ink);}
+.daychip.selected .cmonth{color:#fff; opacity:0.7;}
 .daychip.selected .cdow, .daychip.selected .cnum{color:#fff;}
 .daychip.selected .cdot{background:#fff;}
 
 /* ---------- content ---------- */
-main{padding:4px 16px 20px; display:flex; flex-direction:column; gap:16px;}
+main{padding:4px 16px 20px; display:flex; flex-direction:column; gap:16px; touch-action:pan-y;}
 
 .card{
   background:var(--card); border-radius:var(--radius-lg); padding:18px 18px 10px;
@@ -503,26 +506,67 @@ function renderHeader(){
 
 function renderWeekStrip(){
   const strip = document.getElementById('weekStrip');
-  strip.innerHTML = '';
-  const base = new Date(selected);
-  for(let i=-3;i<=3;i++){
-    const d = new Date(base);
-    d.setDate(base.getDate()+i);
-    if(d.getFullYear() !== 2026) continue;
-    const ds = iso(d);
-    const entry = SCHEDULE[ds];
-    const chip = document.createElement('button');
-    chip.className = 'daychip';
-    const isWeekend = entry && (entry.type==='saturday'||entry.type==='sunday');
-    const isHoliday = entry && entry.type==='holiday';
-    if(isWeekend) chip.classList.add('weekend');
-    if(isHoliday) chip.classList.add('holiday');
-    if(ds === iso(selected)) chip.classList.add('selected');
-    chip.innerHTML = `<span class="cdow">${DOW_SHORT[d.getDay()]}</span><span class="cnum">${d.getDate()}</span><span class="cdot"></span>`;
-    chip.onclick = ()=>{ selected = d; renderAll(); };
-    strip.appendChild(chip);
+  // Monta a faixa do ano inteiro só uma vez; depois só realça e centraliza.
+  if(!strip.dataset.built){
+    let html = '';
+    const start = new Date(2026,0,1);
+    const end = new Date(2026,11,31);
+    let cur = new Date(start);
+    let lastMonth = -1;
+    while(cur <= end){
+      const ds = iso(cur);
+      const entry = SCHEDULE[ds];
+      const isWeekend = entry && (entry.type==='saturday'||entry.type==='sunday');
+      const isHoliday = entry && entry.type==='holiday';
+      const cls = ['daychip'];
+      if(isWeekend) cls.push('weekend');
+      if(isHoliday) cls.push('holiday');
+      const showMonthLabel = cur.getMonth() !== lastMonth;
+      lastMonth = cur.getMonth();
+      html += `<button class="${cls.join(' ')}" data-date="${ds}">`
+            + (showMonthLabel ? `<span class="cmonth">${MON_NAMES[cur.getMonth()]}</span>` : '<span class="cmonth">&nbsp;</span>')
+            + `<span class="cdow">${DOW_SHORT[cur.getDay()]}</span><span class="cnum">${cur.getDate()}</span><span class="cdot"></span></button>`;
+      cur.setDate(cur.getDate()+1);
+    }
+    strip.innerHTML = html;
+    strip.dataset.built = '1';
+    strip.addEventListener('click', (e)=>{
+      const chip = e.target.closest('.daychip');
+      if(!chip) return;
+      selected = fromISO(chip.dataset.date);
+      renderAll();
+    });
   }
+  const targetISO = iso(selected);
+  strip.querySelectorAll('.daychip.selected').forEach(c=>c.classList.remove('selected'));
+  const activeChip = strip.querySelector(`.daychip[data-date="${targetISO}"]`);
+  if(activeChip){
+    activeChip.classList.add('selected');
+    activeChip.scrollIntoView({inline:'center', block:'nearest', behavior: strip.dataset.firstRender ? 'smooth' : 'auto'});
+  }
+  strip.dataset.firstRender = '1';
 }
+
+// Deslizar o dedo no card principal também troca de dia (esquerda/direita).
+(function setupSwipe(){
+  const main = document.getElementById('content');
+  let touchStartX = null, touchStartY = null;
+  main.addEventListener('touchstart', (e)=>{
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, {passive:true});
+  main.addEventListener('touchend', (e)=>{
+    if(touchStartX === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    touchStartX = null;
+    if(Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)*1.5){
+      const d = new Date(selected);
+      d.setDate(d.getDate() + (dx < 0 ? 1 : -1));
+      if(d.getFullYear() === 2026){ selected = d; renderAll(); }
+    }
+  }, {passive:true});
+})();
 
 function initials(name){
   return name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
