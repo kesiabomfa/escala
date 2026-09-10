@@ -111,7 +111,7 @@
 
 ---
 
-### 🌳 ESTAÇÃO 3 — ARVORISMO (ADAPTADO): "A Travessia das Mãos Dadas"
+### 🌳 ESTAÇÃO 3 — ARVORISMO: "A Travessia das Mãos Dadas"
 
 **Charada:**
 > "Complete a ordem que Deus repete 3 vezes a Josué antes de uma grande travessia: 'Sê forte e...'" — **Josué 1:9**
@@ -234,7 +234,7 @@
 
 ---
 
-## 7. A CAVERNA — MOMENTO FINAL (todos os grupos)
+## 7. A CAVERNA — DESFECHO
 
 O "local de culto", **caverna**, completamente escuro.
 
