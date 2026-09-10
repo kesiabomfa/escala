@@ -241,17 +241,7 @@
 
 O "local de culto" disfarçado de **caverna**, completamente escuro.
 
-**Como se relaciona com o Dormitório:** no dormitório eles só escreveram e lacraram um papel em silêncio, sozinhos. Na caverna, esse envelope é **trazido de volta e entregue** — não para ser lido, mas como ato simbólico de entrega a Deus. Dormitório = reconhecer; Caverna = entregar e ser renovado.
-
-**Roteiro sugerido:**
-1. Grupos entram em silêncio, sentam-se no escuro, cada grupo ainda segurando a própria vela acesa desde a Estação 1.
-2. Leitura de **Apocalipse 3:1-3** — "tens nome de que vives, e estás morto... desperta".
-3. O líder retoma a jornada: cada estação foi uma pergunta sobre onde está o tesouro de cada um.
-4. As 8 palavras conquistadas na noite são citadas em ordem, formando a frase completa: **"CRIA EM MIM, Ó DEUS, UM CORAÇÃO PURO E RENOVA DENTRO DE MIM UM ESPÍRITO INABALÁVEL"**.
-5. Leitura de **Salmo 51:10** por completo.
-6. Convite para, em silêncio, depositar o envelope lacrado (do dormitório) num cesto/altar no centro.
-7. As três chamas que cada grupo protegeu a noite inteira são unidas numa única vela central, acesa por representantes dos três grupos ao mesmo tempo — representando que Cristo é a luz que resgata o que estava morto (**João 8:12**), e que a jornada de cada grupo chega ao mesmo lugar.
-8. Oração final conduzida por um líder, com Salmo 51:10 como oração que cada um pode repetir por dentro, encerrando com tempo livre de oração pessoal antes de acender as luzes.
+**Como se relaciona com o Dormitório:** no dormitório eles só escreveram e lacraram um papel em silêncio, sozinhos. Na caverna, esse envelope é **trazido de volta e entregue** — não para ser lido, mas como ato simbólico de entrega a Deus. 
 
 **Cuidados importantes:**
 - 1-2 líderes com lanterna circulando discretamente por segurança.
